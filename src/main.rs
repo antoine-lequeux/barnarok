@@ -13,13 +13,14 @@ struct Cli
 #[derive(Subcommand)]
 enum Commands
 {
-    Run,
     Explore
     {
         #[arg(short, long)]
         depth: usize,
         #[arg(short, long)]
         verbose: bool,
+        #[arg(short, long)]
+        fen: Option<String>,
     },
     Play
     {
@@ -36,27 +37,20 @@ fn main()
 
     match &cli.command
     {
-        Commands::Run =>
+        Commands::Explore { depth, verbose, fen } =>
         {
-            match Board::from_fen("rnb2bnr/ppqppppp/8/3kq2R/8/5K2/PPPPPPPP/RNBQ1BN1 w - -")
+            let board_res = match fen
             {
-                Ok(board) =>
-                {
-                    board.display();
-                    println!("evaluation: {}", board.evaluate());
-                },
-                Err(err) => eprint!("{}", err),
-            }
-        },
-        Commands::Explore { depth, verbose } =>
-        {
-            match Board::from_fen("8/8/8/3q4/8/4Q3/8/4K2k w - -")
+                Some(fen_content) => Board::from_fen(fen_content),
+                None => Board::new(),
+            };
+            match board_res
             {
                 Ok(mut board) =>
                 {
                     board.display();
                     println!(
-                        "number of positions at a depth of {}: {}",
+                        "number of reachable positions after {} half-moves: {}",
                         depth,
                         launch_explore(&mut board, *depth, *verbose)
                     );
@@ -70,7 +64,7 @@ fn main()
             {
                 GameResult::White => println!("White wins by checkmate."),
                 GameResult::Black => println!("Black wins by checkmate."),
-                GameResult::Stalemate => println!("The game ends in a draw by checkmate."),
+                GameResult::Stalemate => println!("The game ends in a draw by stalemate."),
             },
             Err(err) => eprintln!("{}", err),
         },
