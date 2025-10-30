@@ -14,8 +14,8 @@ pub enum MoveContext
 }
 
 // A move consists of a start tile and an end tile.
-// I might need to add more fields when I start using it.
-#[derive(Debug, Clone, Copy)]
+// The other fields allow the engine to modifiy the board accordingly when a move is made or unmade.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Move
 {
     pub start: Index,

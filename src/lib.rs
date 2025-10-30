@@ -6,6 +6,7 @@ pub mod moves;
 pub mod piece;
 pub mod play;
 pub mod utils;
+pub mod book;
 
 pub use ai::*;
 pub use board::*;
@@ -15,3 +16,4 @@ pub use moves::*;
 pub use piece::*;
 pub use play::*;
 pub use utils::*;
+pub use book::*;

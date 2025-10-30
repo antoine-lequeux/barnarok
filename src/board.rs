@@ -1,11 +1,13 @@
-use crate::{Move, MoveContext, defines::*, get_legal_moves, get_piece_type_on_square};
+use crate::{
+    Move, MoveContext, OpeningBook, defines::*, get_legal_moves, get_piece_type_on_square,
+};
 
 // This struct represents the current state of the board.
 // Bitboards and indices are used to give information on the positions of the
 // pieces.
 // Some data is redundant, but it should help calculating possible moves without
 // looking for each piece manually.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Board
 {
     // White pieces positions by type.
@@ -43,6 +45,8 @@ pub struct Board
     pub black_king_side_castling_right: bool,
 
     pub white_to_play: bool,
+
+    pub opening_book: Option<OpeningBook>,
 }
 
 impl Board
@@ -790,6 +794,16 @@ impl Board
         let black_pieces = bp | br | bn | bb | bq | (1u64 << black_king);
         let all_pieces = white_pieces | black_pieces;
 
+        let opening_book = match OpeningBook::load("opening_moves.csv")
+        {
+            Ok(book) => Some(book),
+            Err(e) =>
+            {
+                eprintln!("Error while opening the openings file: {}", e);
+                None
+            },
+        };
+
         // Create the Board object using the data we gathered from the FEN string.
         return Ok(Board {
             white_pawns: wp,
@@ -825,7 +839,141 @@ impl Board
                 // Return an error if the character is invalid.
                 _ => return Err(format!("Invalid active color `{}`.", active_color)),
             },
+
+            opening_book,
         });
+    }
+
+    pub fn to_fen(&self) -> String
+    {
+        let mut fen = String::new();
+
+        // Iterate ranks 8 to 1.
+        for rank in (0 .. 8).rev()
+        {
+            let mut empty_count = 0;
+
+            for file in 0 .. 8
+            {
+                let sq = rank * 8 + file;
+                let piece_char = if (self.white_pawns >> sq) & 1 != 0
+                {
+                    'P'
+                }
+                else if (self.white_rooks >> sq) & 1 != 0
+                {
+                    'R'
+                }
+                else if (self.white_knights >> sq) & 1 != 0
+                {
+                    'N'
+                }
+                else if (self.white_bishops >> sq) & 1 != 0
+                {
+                    'B'
+                }
+                else if (self.white_queens >> sq) & 1 != 0
+                {
+                    'Q'
+                }
+                else if sq == self.white_king
+                {
+                    'K'
+                }
+                else if (self.black_pawns >> sq) & 1 != 0
+                {
+                    'p'
+                }
+                else if (self.black_rooks >> sq) & 1 != 0
+                {
+                    'r'
+                }
+                else if (self.black_knights >> sq) & 1 != 0
+                {
+                    'n'
+                }
+                else if (self.black_bishops >> sq) & 1 != 0
+                {
+                    'b'
+                }
+                else if (self.black_queens >> sq) & 1 != 0
+                {
+                    'q'
+                }
+                else if sq == self.black_king
+                {
+                    'k'
+                }
+                else
+                {
+                    // Empty square.
+                    empty_count += 1;
+                    continue;
+                };
+
+                // If there were empty squares before this piece, write the number.
+                if empty_count > 0
+                {
+                    fen.push_str(&empty_count.to_string());
+                    empty_count = 0;
+                }
+
+                fen.push(piece_char);
+            }
+
+            // If the rank ends with empty squares.
+            if empty_count > 0
+            {
+                fen.push_str(&empty_count.to_string());
+            }
+
+            // Add rank separator if not last rank.
+            if rank > 0
+            {
+                fen.push('/');
+            }
+        }
+
+        // Active color.
+        let active_color = if self.white_to_play { "w" } else { "b" };
+
+        // Castling rights.
+        let mut castling = String::new();
+        if self.white_king_side_castling_right
+        {
+            castling.push('K');
+        }
+        if self.white_queen_side_castling_right
+        {
+            castling.push('Q');
+        }
+        if self.black_king_side_castling_right
+        {
+            castling.push('k');
+        }
+        if self.black_queen_side_castling_right
+        {
+            castling.push('q');
+        }
+        if castling.is_empty()
+        {
+            castling.push('-');
+        }
+
+        // En passant target.
+        let en_passant = if let Some(sq) = self.en_passant_target
+        {
+            let file = (sq % 8) as u8 + b'a';
+            let rank = (sq / 8) as u8 + b'1';
+            format!("{}{}", file as char, rank as char)
+        }
+        else
+        {
+            "-".to_string()
+        };
+
+        // Combine fields.
+        format!("{} {} {} {}", fen, active_color, castling, en_passant)
     }
 
     pub fn display(&self)

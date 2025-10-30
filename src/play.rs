@@ -1,4 +1,7 @@
-use std::{collections::HashMap, io};
+use std::{
+    collections::HashMap,
+    io,
+};
 
 use rand::seq::IndexedRandom;
 
@@ -21,6 +24,7 @@ pub fn play(white_strategy_choice: &str, black_strategy_choice: &str)
         "negamax" => negamax_strategy,
         "alphabeta" => alpha_beta_strategy,
         "alphabetaq" => alpha_beta_quiesce_strategy,
+        "alphabetaqb" => alpha_beta_quiesce_strategy_book,
         _ => return Err("The chosen white strategy is not valid.".into()),
     };
     let black_strategy = match black_strategy_choice
@@ -30,6 +34,7 @@ pub fn play(white_strategy_choice: &str, black_strategy_choice: &str)
         "negamax" => negamax_strategy,
         "alphabeta" => alpha_beta_strategy,
         "alphabetaq" => alpha_beta_quiesce_strategy,
+        "alphabetaqb" => alpha_beta_quiesce_strategy_book,
         _ => return Err("The chosen black strategy is not valid.".into()),
     };
     match Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -")
@@ -138,6 +143,31 @@ fn alpha_beta_strategy(board: &mut Board) -> Option<Move>
 
 fn alpha_beta_quiesce_strategy(board: &mut Board) -> Option<Move>
 {
-    let (_, result) = launch_alpha_beta_quiesce(board, 4);
+    let (_, result) = launch_alpha_beta_quiesce(board, 5);
+    return result;
+}
+
+fn alpha_beta_quiesce_strategy_book(board: &mut Board) -> Option<Move>
+{
+    match &board.opening_book
+    {
+        Some(book) => match book.get_move(&board.to_fen())
+        {
+            Some(found_move) =>
+            {
+                for mv in board.get_legal_moves()
+                {
+                    if mv.to_uci() == found_move
+                    {
+                        return Some(mv);
+                    }
+                }
+            },
+            None => (),
+        },
+        None => (),
+    }
+
+    let (_, result) = launch_alpha_beta_quiesce(board, 5);
     return result;
 }
